@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Map — 324.ing</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0c; }
+
+  #canvas { display: block; position: fixed; inset: 0; }
+
+  /* ── Left panel ── */
+  #panel {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 380px;
+    background: rgba(10,10,12,0.96);
+    border-right: 1px solid #1c1b18;
+    transform: translateX(-100%);
+    transition: transform 0.45s cubic-bezier(0.22,0.61,0.36,1);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #panel.open { transform: translateX(0); }
+
+  #panel-header {
+    padding: 28px 28px 16px;
+    border-bottom: 1px solid #1c1b18;
+    flex-shrink: 0;
+  }
+  .tag-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    margin-bottom: 14px;
+    opacity: 0.9;
+  }
+  #panel-title {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #e8e6e1;
+    line-height: 1.5;
+    margin-bottom: 8px;
+    min-height: 1.5em;
+  }
+  #panel-subtitle {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    font-weight: 300;
+    color: rgba(200,164,92,0.75);
+    line-height: 1.6;
+    min-height: 1.6em;
+  }
+
+  #panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 28px 28px;
+    scrollbar-width: thin;
+    scrollbar-color: #252528 transparent;
+  }
+  #panel-body::-webkit-scrollbar { width: 4px; }
+  #panel-body::-webkit-scrollbar-thumb { background: #252528; border-radius: 2px; }
+
+  .fact-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .fact-item.visible { opacity: 1; transform: translateY(0); }
+  .fact-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    margin-top: 7px;
+    flex-shrink: 0;
+  }
+  .fact-text {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    font-weight: 300;
+    color: rgba(232,230,225,0.65);
+    line-height: 1.7;
+  }
+  .fact-text code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: rgba(200,164,92,0.8);
+    background: rgba(200,164,92,0.08);
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+
+  /* ── Close btn ── */
+  #close-btn {
+    position: absolute;
+    top: 20px; right: 20px;
+    width: 28px; height: 28px;
+    background: none;
+    border: 1px solid #252528;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #5a5850;
+    font-size: 14px;
+    transition: border-color 0.2s, color 0.2s;
+    z-index: 10;
+  }
+  #close-btn:hover { border-color: #c8a45c; color: #c8a45c; }
+
+  /* ── Legend ── */
+  #legend {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #3a3830;
+    letter-spacing: 0.06em;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+  }
+  .legend-row { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── Tooltip ── */
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 200;
+    background: rgba(10,10,12,0.92);
+    border: 1px solid #1c1b18;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 11px;
+    color: #c8c4bc;
+    max-width: 260px;
+    line-height: 1.5;
+    display: none;
+  }
+
+  /* ── Header label ── */
+  #header-label {
+    position: fixed;
+    top: 28px; left: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #2a2820;
+    letter-spacing: 0.18em;
+    z-index: 50;
+    user-select: none;
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;500;700&family=JetBrains+Mono:wght@300;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="panel">
+  <button id="close-btn">✕</button>
+  <div id="panel-header">
+    <div id="panel-tag" class="tag-badge"></div>
+    <div id="panel-title"></div>
+    <div id="panel-subtitle"></div>
+  </div>
+  <div id="panel-body" id="panel-facts"></div>
+</div>
+
+<div id="tooltip"></div>
+<div id="header-label">KNOWLEDGE MAP — 324.ing</div>
+
+<div id="legend"></div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────
+const NODES = [{"id": 1790, "title": "PDCA gap analysis document confirms complete station-og implementation", "subtitle": "Analysis document created showing 10/10 design requirements implemented with zero gaps identified", "facts": ["Gap analysis document created at `docs/03-analysis/station-og.analysis.md` verifying 100% match rate between design and implementation", "All 10 design requirements verified as PASS: utility functions, edge route, metadata updates, layout, responsive font sizing, Korean font loading, fallback strategies, and caching", "Analysis identifies two implementation extras beyond design spec: `lightBg()`/`badgeBg()` color mixing helpers and `stale-while-revalidate=86400` cache directive"], "type": "change", "icon": "✅", "tags": ["Next.js", "OG Image", "Design", "PDCA", "Subway"], "_i": 0}, {"id": 1789, "title": "Station OG image generation route with dynamic theming and fallback strategies", "subtitle": "Edge route generates 1200×630 OG cards with line-colored layout, Korean font loading, and graceful degradation", "facts": ["Edge route at `/og/station/[stationId]/route.tsx` generates ImageResponse with font sizes that scale based on station name length: 60px/22px for 1-3 chars, 48px/18px for 4-5 chars, 36px/15px for 6-7 chars", "Color theming uses `lightBg()` (12% color + 88% white) and `badgeBg()` (20% color + 80% white) functions to create subtle tinted backgrounds from line hex colors", "Pretendard-Bold Korean font loaded from jsdelivr CDN with fallback to generic `/og` route if fetch fails, preventing errors from blocking image generation"], "type": "discovery", "icon": "🔵", "tags": ["Next.js", "OG Image", "Design", "Subway"], "_i": 1}, {"id": 1788, "title": "OG utility functions implementation for station color and line extraction", "subtitle": "Two utility functions extract station line color and formatted line name from Seoul/Busan subway data", "facts": ["`getStationOgColor()` identifies city from station ID prefix (s- for Seoul), finds station's first line, and returns that line's color with #10b981 green as fallback", "`getStationOgLineName()` returns formatted string like \"서울 2호선\" or \"부산 1호선\" by combining city label with line name from first line", "Both functions use station ID prefix pattern matching to determine Seoul vs Busan and query appropriate data sources (SEOUL_STATIONS/BUSAN_STATIONS and SEOUL_LINES/BUSAN_LINES)"], "type": "discovery", "icon": "🔵", "tags": ["Design", "Subway"], "_i": 2}, {"id": 1787, "title": "Station-specific OG image card design specification", "subtitle": "Design document defines dynamic Open Graph cards with line-specific colors for subway station social sharing", "facts": ["Current `/og` route generates generic green text cards that don't display acrostic poem content in social shares", "Planned `/og/station/[stationId]` route will generate 1200×630 OG images with line-specific accent colors (e.g., Seoul Line 2 uses #00A84D green)", "Card layout includes station name, line info, acrostic poem lines, and scales font sizes based on poem length (1-3 lines: 60px/22px, 4-5: 48px/18px, 6-7: 36px/15px)"], "type": "discovery", "icon": "🔵", "tags": ["Next.js", "OG Image", "Design", "PDCA", "Subway", "Feature"], "_i": 3}, {"id": 1786, "title": "Production Deployment Successful", "subtitle": "Dynamic sitemap deployed to https://d.324.ing with hourly ISR revalidation confirmed", "facts": ["Vercel deployment completed in 33 seconds with build time of 15 seconds", "sitemap.xml prerendered with 1-hour revalidation period confirmed in build output", "Production site aliased to https://d.324.ing domain"], "type": "change", "icon": "✅", "tags": ["Next.js", "Design", "Sitemap", "Deploy"], "_i": 4}, {"id": 1785, "title": "Production Deployment Initiated", "subtitle": "Started Vercel production deployment to ship dynamic sitemap with automatic updates", "facts": ["Vercel production deployment initiated for documents project with background task ID bsz38vgz4", "Deployment includes new src/app/sitemap.ts with ISR and d.324.ing domain", "Production sitemap will auto-update hourly by querying Firestore for latest content"], "type": "change", "icon": "✅", "tags": ["Firebase", "Sitemap", "Deploy"], "_i": 5}, {"id": 1784, "title": "Aligned Sitemap Domain with Codebase Standard", "subtitle": "Changed sitemap BASE_URL from doc.324.ing to d.324.ing for consistency with existing URLs", "facts": ["Updated BASE_URL in src/app/sitemap.ts from https://doc.324.ing to https://d.324.ing", "Change aligns sitemap URLs with canonical URLs in layout.tsx and archive pages", "All sitemap entries now use d.324.ing domain matching rest of application"], "type": "change", "icon": "✅", "tags": ["Next.js", "Sitemap"], "_i": 6}, {"id": 1783, "title": "Domain Inconsistency Across Codebase", "subtitle": "CNAME uses doc.324.ing but multiple source files still reference old d.324.ing domain", "facts": ["CNAME file correctly specifies doc.324.ing as production domain", "src/app/layout.tsx metadataBase uses outdated https://d.324.ing/ URL", "src/app/archives/[slug]/page.tsx generates canonical URLs with https://d.324.ing/archives/"], "type": "discovery", "icon": "🔵", "tags": ["Next.js", "PDCA", "Sitemap", "Deploy"], "_i": 7}, {"id": 1782, "title": "Added Notes Route to Sitemap", "subtitle": "Included /notes static page in sitemap with weekly updates and medium priority", "facts": ["Added /notes URL to staticUrls array in sitemap.ts", "Notes page configured with weekly changeFrequency and 0.5 priority", "Sitemap now covers all application routes: homepage, colophon, notes, categories, and archives"], "type": "change", "icon": "✅", "tags": ["Next.js", "Sitemap"], "_i": 8}, {"id": 1781, "title": "Notes Route Structure", "subtitle": "Notes is a static route without dynamic segments, unlike archives and categories", "facts": ["src/app/notes/ contains only page.tsx with no dynamic route segments", "Notes route should be included in sitemap as static URL"], "type": "discovery", "icon": "🔵", "tags": ["Next.js", "Sitemap"], "_i": 9}, {"id": 1780, "title": "Existing Static Sitemap File", "subtitle": "Found manually created sitemap.xml with outdated domain d.324.ing", "facts": ["Static sitemap.xml exists in project root with XML format", "Old sitemap uses domain https://d.324.ing/ instead of current https://doc.324.ing", "Static sitemap requires manual updates when content changes"], "type": "discovery", "icon": "🔵", "tags": ["Design", "Sitemap"], "_i": 10}, {"id": 1779, "title": "Dynamic Sitemap Generation with ISR", "subtitle": "Implemented automatic sitemap.xml with hourly updates from Firestore archives and categories", "facts": ["src/app/sitemap.ts implements Next.js MetadataRoute.Sitemap with revalidate = 3600", "Queries Firestore archives collection for slug, date, updatedAt fields in parallel with categories", "Generates URLs for static pages (homepage, colophon), all archive slugs, and all category IDs"], "type": "feature", "icon": "🟣", "tags": ["Firebase", "Next.js", "Sitemap"], "_i": 11}, {"id": 1778, "title": "Firebase Admin SDK Configuration", "subtitle": "Server-side Firestore access configured with environment variable credentials and singleton initialization", "facts": ["src/lib/firebase/admin.ts exports adminDb Firestore instance for server-side data access", "Firebase Admin SDK initializes with service account credentials from environment variables", "Environment variables required: FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, FIREBASE_ADMIN_PRIVATE_KEY"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Auth", "Design", "PDCA", "Env"], "_i": 12}, {"id": 1777, "title": "Domain and Library Structure", "subtitle": "Site hosted at doc.324.ing domain with Firebase and TypeScript type definitions", "facts": ["CNAME file specifies domain as doc.324.ing", "src/lib/ directory contains firebase/ subdirectory and types.ts", "Domain will be used as base URL for sitemap.xml URL generation"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Sitemap"], "_i": 13}, {"id": 1776, "title": "Static JSON Data Files Structure", "subtitle": "Local archives.json and categories.json files contain metadata for all content items", "facts": ["archives.json contains array of objects with fields: name, title, ext, category, size, date, order, thumbnail", "Archive names use .html filenames as identifiers (e.g., \"2026_FIA_F1_Section_B_스포팅규정_한국어번역.html\")", "categories.json contains array with id, label, color fields for each category"], "type": "discovery", "icon": "🔵", "tags": ["Design"], "_i": 14}, {"id": 1775, "title": "Firebase Data Fetching Pattern for Dynamic Routes", "subtitle": "Archives and categories fetch from Firestore with generateStaticParams and ISR revalidation", "facts": ["Archives use generateStaticParams() querying adminDb.collection(\"archives\").select(\"slug\")", "Category pages implement ISR with 3600 second revalidation interval", "Firebase Firestore collections \"archives\" and \"categories\" contain all route data"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Next.js", "Design"], "_i": 15}, {"id": 1774, "title": "Dynamic Route Patterns in App", "subtitle": "Archives use slug-based routing while categories use ID-based routing", "facts": ["src/app/archives/[slug]/ implements dynamic routing with slug parameter", "src/app/category/[id]/ implements dynamic routing with id parameter", "Both routes require data fetching to generate all possible URLs for sitemap"], "type": "discovery", "icon": "🔵", "tags": ["Next.js", "Design", "Sitemap"], "_i": 16}, {"id": 1773, "title": "Next.js App Structure and Routing Configuration", "subtitle": "Project uses Next.js App Router with custom rewrites for HTML-style archive URLs", "facts": ["App directory contains routes: admin, archives, category, colophon, notes", "next.config.ts implements URL rewrite from /archives/:slug.html to /archives/:slug", "Project root is /Volumes/Dev/todaygyul with app code in src/app/"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Next.js", "Design"], "_i": 17}, {"id": 1772, "title": "Design Approved for Implementation with Documented Outstanding Concerns", "subtitle": "Changed status from DRAFT to APPROVED after three review iterations, accepting 7/10 quality score with five known gaps for implementation resolution.", "facts": ["Design document status changed from DRAFT to APPROVED signaling implementation readiness", "Approval granted despite five outstanding concerns explicitly documented in Reviewer Concerns section", "Decision accepts 7/10 quality score as sufficient for Phase 1 implementation with known risks"], "type": "decision", "icon": "⚖️", "tags": ["Design", "PDCA"], "_i": 18}, {"id": 1771, "title": "Implemented Design Review Metrics Tracking System", "subtitle": "Created analytics logging capturing review iterations, issues found versus fixed, and quality scores for process improvement.", "facts": ["Created analytics directory at ~/.gstack/analytics for process metrics tracking", "Logged design review metrics to spec-review.jsonl in JSONL format for time-series analysis", "Metrics captured: 3 review iterations, 22 issues found, 17 issues fixed, 5 remaining, quality score 7/10"], "type": "change", "icon": "✅", "tags": ["Design", "PDCA"], "_i": 19}, {"id": 1770, "title": "Added Reviewer Concerns Section Documenting Outstanding Implementation Issues", "subtitle": "Documented five critical gaps from design reviews requiring resolution before implementation with 7/10 quality score notation.", "facts": ["Added Reviewer Concerns section noting three review rounds with final 7/10 quality score", "Documented Custom Claims byte limit misunderstanding: 1,000 bytes total payload not 1,000 items, limiting to ~15-20 workspaces", "Identified missing onboarding flow specification for workspace creation on first login"], "type": "change", "icon": "✅", "tags": ["Firebase", "Auth", "Design", "PDCA", "Onboarding"], "_i": 20}, {"id": 1768, "title": "Station-specific OG image cards with subway line colors", "subtitle": "Dynamic OG images generated per station using first subway line color as branded theme", "facts": ["New edge route /og/station/[stationId] generates 1200×630 OG image cards for each subway station", "Each station's OG card uses its first subway line color as background and accent (Gangnam station uses green from line 2, Seoul station uses navy from line 1)", "Font size auto-adjusts by poem length: 1-3 lines use 60px, 4-5 lines use 48px, 6-7 lines use 36px"], "type": "feature", "icon": "🟣", "tags": ["Next.js", "OG Image", "Design", "PDCA", "Subway", "Feature"], "_i": 21}, {"id": 1769, "title": "Refined HTML Rendering Classification as Differentiator Rather Than Nice-to-Have", "subtitle": "Updated Premises to clarify HTML rendering is a competitive differentiator, not the core value, resolving must-have versus nice-to-have contradiction.", "facts": ["Premises section updated to state HTML rendering is a differentiator rather than optional nice-to-have feature", "New wording clarifies HTML rendering is not the core value proposition but is required for competitive positioning", "Resolves contradiction between Premises calling it \"nice-to-have\" and Phase 1 priorities classifying it as \"must-have\""], "type": "change", "icon": "✅", "tags": ["Design", "Feature"], "_i": 22}, {"id": 1767, "title": "Global Replacement Resolved Search Engine Terminology Inconsistencies", "subtitle": "Replaced all Typesense references with Meilisearch across Open Questions, Failure Modes, and Dependencies sections.", "facts": ["Global find-and-replace changed all Typesense references to Meilisearch throughout document", "Open Questions section updated from \"Typesense self-hosted VPS\" to \"Meilisearch self-hosted VPS\"", "Failure Modes table changed \"Typesense 인덱싱 실패\" to \"Meilisearch 인덱싱 실패\""], "type": "change", "icon": "✅", "tags": ["General"], "_i": 23}, {"id": 1766, "title": "Second Review Identified Incomplete Fixes and New Critical Technical Errors", "subtitle": "Post-fix review found search engine inconsistencies across sections, Custom Claims byte limit misunderstanding, and incomplete HTML priority resolution.", "facts": ["Review scored design 7/10, identifying critical search engine contradiction with Meilisearch specified in architecture but Typesense remaining in Open Questions, Failure Modes, and Dependencies sections", "HTML rendering priority contradiction persists: line 45 Premises still states \"보조 기능(Nice-to-have)\" while line 161 priorities changed to \"Must-have\"", "Custom Claims strategy has fundamental technical error: 1,000-byte total payload limit allows only ~20-30 workspace IDs, not 1,000 items as assumed in line 80"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Design", "PDCA", "Subway"], "_i": 24}, {"id": 1765, "title": "OG route successfully handles 7-line acrostic edge case", "subtitle": "Font-size scaling implemented correctly for gasandigital station with longest seed poem in dataset", "facts": ["Endpoint http://localhost:3000/og/station/s-gasandigital returns HTTP 200 for 7-character station name", "가산디지털단지 (gasandigital) is the longest acrostic poem in seed data with 7 lines", "Dynamic font-size scaling (36/15px for 6-7 lines) tested successfully"], "type": "discovery", "icon": "🔵", "tags": ["Next.js", "Design", "Subway"], "_i": 25}, {"id": 1764, "title": "OG image endpoint successfully renders Gangnam station card", "subtitle": "First test of station-specific OG route returns HTTP 200 with rendered image for Seoul Line 2 station", "facts": ["Endpoint http://localhost:3000/og/station/s-gangnam returns HTTP 200 status", "Screenshot captured to /tmp/og-gangnam.png showing rendered OG card", "Route successfully generates ImageResponse for 2-line acrostic poem (강남역)"], "type": "discovery", "icon": "🔵", "tags": ["Next.js", "OG Image", "Subway"], "_i": 26}, {"id": 1763, "title": "Station-specific OG image route implementation complete", "subtitle": "Implemented edge runtime route generating line-colored Open Graph cards for subway stations with Korean font support", "facts": ["Route at src/app/og/station/[stationId]/route.tsx generates 1200×630 OG images on edge runtime", "Dynamic font sizing: 60/22px for 1-3 lines, 48/18px for 4-5 lines, 36/15px for 6-7 lines", "Loads Pretendard Bold font from CDN with fallback to generic OG route on failure"], "type": "feature", "icon": "🟣", "tags": ["Next.js", "OG Image", "Design", "PDCA", "Subway"], "_i": 27}, {"id": 1761, "title": "Added explicit type annotations to map callback parameters", "subtitle": "Fixed TypeScript strict mode errors by annotating char and i parameters in JSX map function", "facts": ["Added explicit type annotation char: string to map callback parameter at line 137", "Added explicit type annotation i: number to map callback index parameter", "Resolves TypeScript TS7006 implicit 'any' type errors in strict mode"], "type": "bugfix", "icon": "🔴", "tags": ["Subway"], "_i": 28}, {"id": 1762, "title": "Clarified AI Tagging Retry Mechanism with Failure Tracking", "subtitle": "Specified Cloud Tasks implementation for retries with explicit failure state and admin notification after two failed attempts.", "facts": ["AI tagging pipeline updated to use Meilisearch instead of Typesense for index updates", "Retry mechanism explicitly specified as Cloud Tasks queue with 5-minute delayed retry", "Failure handling clarified: after 2 total attempts, aiTagged set to \"failed\" state with admin notification"], "type": "change", "icon": "✅", "tags": ["Firebase", "Subway"], "_i": 29}, {"id": 1760, "title": "Fixed incorrect BUSAN_STATIONS import path", "subtitle": "Corrected module import to load Busan station data from busan-subway instead of seoul-subway module", "facts": ["BUSAN_STATIONS import changed from @/data/seoul-subway to @/data/busan-subway", "Import split into separate lines for SEOUL_STATIONS and BUSAN_STATIONS", "Fix resolves TypeScript module export error TS2305"], "type": "bugfix", "icon": "🔴", "tags": ["Subway"], "_i": 30}, {"id": 1759, "title": "TypeScript errors in OG station route implementation", "subtitle": "Type checker found incorrect import and missing type annotations in the station OG image route", "facts": ["BUSAN_STATIONS incorrectly imported from @/data/seoul-subway instead of @/data/busan-subway module", "Parameters 'char' and 'i' at line 137 in route.tsx lack explicit type annotations in strict mode", "TypeScript strict mode (--noEmit) caught errors before runtime"], "type": "discovery", "icon": "🔵", "tags": ["Next.js", "OG Image", "PDCA", "Subway"], "_i": 31}, {"id": 1758, "title": "Resolved HTML Rendering Priority Classification Contradiction", "subtitle": "Changed HTML rendering from nice-to-have to must-have reflecting its inclusion in Phase 1 with mandatory security requirements.", "facts": ["HTML/PDF rendering reclassified from Nice-to-have to Must-have in Phase 1 differentiation priorities", "Specification updated to reflect subdomain isolation implementation strategy with XSS protections included", "Search priority updated to explicitly mention Meilisearch Cloud implementation"], "type": "change", "icon": "✅", "tags": ["Design", "Feature"], "_i": 32}, {"id": 1757, "title": "OG image utilities for station line colors and names", "subtitle": "Created helper functions to extract line color and formatted name from station ID for social sharing cards", "facts": ["getStationOgColor returns the hex color of a station's first line (lines[0]) with #10b981 fallback", "getStationOgLineName returns formatted string like \"서울 2호선\" or \"부산 1호선\" with city prefix", "Both functions determine Seoul vs Busan by checking if stationId starts with \"s-\" prefix"], "type": "feature", "icon": "🟣", "tags": ["OG Image", "Design", "PDCA", "Subway"], "_i": 33}, {"id": 1756, "title": "Updated Phase 1 Scope with Payment Integration and Architectural Details", "subtitle": "Added Stripe integration to Phase 1 tasks and updated all items with specific implementation details from architecture changes.", "facts": ["Added Stripe payment integration as fifth Phase 1 task explicitly required for success criterion validation", "Updated task 1 to include Custom Claims implementation for multi-workspace security", "Changed task 2 from Typesense to Meilisearch Cloud reflecting architecture migration"], "type": "change", "icon": "✅", "tags": ["Design"], "_i": 34}, {"id": 1755, "title": "Completed Search Architecture Migration to Meilisearch with Security Model", "subtitle": "Fully specified managed search implementation with client security, failure modes, and graceful degradation strategy.", "facts": ["Search architecture fully transitioned from self-hosted Typesense to Meilisearch Cloud managed service", "Meilisearch free tier provides 100k document capacity sufficient for Phase 1 validation with option to self-host in Phase 2", "Client search security implemented via server-side generation of workspaceId-scoped Search-Only API Keys preventing cross-workspace access"], "type": "change", "icon": "✅", "tags": ["Firebase", "Design", "Env"], "_i": 35}, {"id": 1754, "title": "Fixed Multi-Workspace Security Model and HTML Rendering Isolation", "subtitle": "Resolved critical Custom Claims architecture gap and strengthened HTML security with subdomain isolation strategy.", "facts": ["Custom Claims changed from single workspaceId to workspaceIds array to support multi-workspace membership", "Security rules updated to use hasAny([workspaceId]) for array-based workspace verification", "Added fallback mechanism for edge case where user belongs to more than 1,000 workspaces using server-side Firestore get() check"], "type": "change", "icon": "✅", "tags": ["Firebase", "Design", "PDCA"], "_i": 36}, {"id": 1753, "title": "Switched to Managed Search and Added Resource Limits Based on Review", "subtitle": "Replaced self-hosted Typesense with Meilisearch Cloud and added file size and upload rate limits to address review findings.", "facts": ["Search engine changed from self-hosted Typesense on Korean VPS to Meilisearch Cloud managed service", "Added individual file size limit of 50MB maximum per document", "Added workspace upload rate limit of 100 files per hour for AI cost control"], "type": "change", "icon": "✅", "tags": ["Design", "PDCA", "Deploy"], "_i": 37}, {"id": 1752, "title": "Design Review Identified Critical Architecture Gaps in Archive Platform", "subtitle": "Comprehensive 5-dimension review revealed security model issues, operational complexity mismatches, and scope inconsistencies requiring resolution before implementation.", "facts": ["Review identified critical Firestore Security Rules gap: Custom Claims approach only supports single workspaceId but data model allows multi-workspace membership", "Typesense self-hosting creates operational burden conflict for solo builder validating payment willingness (VPS management, backups, monitoring, disk sizing)", "HTML rendering classified as nice-to-have but included in Phase 1 with mandatory XSS prevention creates priority contradiction"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Design", "PDCA", "Deploy"], "_i": 38}, {"id": 1751, "title": "Comprehensive Product Design for Opinionated Archive Platform", "subtitle": "Designed phased document archive platform with AI tagging and fast search to address Notion's performance limitations at scale.", "facts": ["Platform targets users managing 10,000+ HTML/PDF documents where Notion performance degrades significantly", "Architecture uses Firebase (Auth + Firestore), Typesense for search (p95 &lt; 100ms target), and Claude Haiku API for auto-tagging", "Data model implements multi-tenant workspaces with subcollections for members, documents, and categories in Firestore"], "type": "decision", "icon": "⚖️", "tags": ["Firebase", "Auth", "Design", "Subway"], "_i": 39}, {"id": 1750, "title": "Design Document Quality Review Reveals Critical Implementation Gaps", "subtitle": "Agent-based review identified missing data models, contradictory targets, and scope creep in archive platform design document", "facts": ["Architect agent performed 5-dimension quality review scoring design document 5/10 across completeness, consistency, clarity, scope, and feasibility", "Completeness issues: no Firestore data model/schema, no API contracts for AI tagging pipeline, no auth/authorization model for multi-tenancy, no error handling for Claude API/Typesense failures, no storage strategy for HTML/PDF files", "Consistency issues: search speed targets contradict (12ms vs 50ms at different scales), problem statement targets 10k+ documents but success criteria only requires 1k+, core value stated as search but HTML rendering listed as top differentiator"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Next.js", "Auth", "Design", "PDCA", "Subway", "Deploy", "Feature"], "_i": 40}, {"id": 1749, "title": "Opinionated Archive Platform Design Decision for Documents Project", "subtitle": "Strategic pivot to AI-powered document archive targeting Notion's performance limitations at scale with auto-tagging and fast search", "facts": ["Design document created at ~/.gstack/projects/documents/dyno-unknown-design-20260322-233114.md defining product strategy", "Problem identified: Notion/Excel performance degrades beyond 10,000 documents with slow loads and complex structure design", "Target users: individuals and small teams managing large HTML/PDF document archives (legal, technical docs, translations)"], "type": "decision", "icon": "⚖️", "tags": ["Firebase", "Next.js", "Auth", "Design", "Subway", "Feature"], "_i": 41}, {"id": 1748, "title": "Station-Specific OG Image Cards with Line-Color Theming", "subtitle": "Designed new OG image system with per-station cards featuring subway line colors for enhanced social sharing.", "facts": ["Design document created at /Users/dyno/.gstack/projects/nohdaeyoung-subway-acrostic/dyno-main-design-20260322-232939.md", "Recommended approach: new `/og/station/[stationId]` edge route using Next.js ImageResponse", "Card design displays full acrostic poem content with line-specific color gradients and accents"], "type": "decision", "icon": "⚖️", "tags": ["Next.js", "OG Image", "Design", "Subway"], "_i": 42}, {"id": 1747, "title": "Documents Platform Wireframe Design Created", "subtitle": "Interactive HTML wireframe generated showing document archive platform with AI tagging and category management features", "facts": ["Wireframe HTML created at /tmp/gstack-sketch-1774189806.html showing full Documents platform UI design", "Design includes sidebar navigation with categories showing document counts (기술 문서: 891, 법률·계약: 423, 레퍼런스: 672, 번역·정리: 318)", "Main content area features grid/list view toggle, search with ⌘K shortcut, and sort options (최근 업로드, 이름 순, 카테고리)"], "type": "change", "icon": "✅", "tags": ["Design", "Feature"], "_i": 43}, {"id": 1746, "title": "OG Card Design Prototypes with Line-Color Accents", "subtitle": "Created HTML wireframes showing OG card designs with subway line-specific color theming for stations.", "facts": ["HTML wireframe generated at /tmp/gstack-sketch-1774189722.html showing three OG card design variations", "Line 2 (Gangnam) uses green gradient background (#f0fdf4 to #dcfce7) with #00A84D accent border", "Line 1 (Seoul) uses navy gradient background (#eff6ff to #dbeafe) with #0052A4 accent border"], "type": "change", "icon": "✅", "tags": ["OG Image", "Design", "Subway"], "_i": 44}, {"id": 1745, "title": "Documents Project Git History and Feature Set", "subtitle": "Documents project migrated from GitHub Pages to Next.js with Firebase backend and admin content management", "facts": ["Documents project migrated from GitHub Pages to Next.js + Firebase architecture", "Recent commits added Google OAuth login and account linking functionality", "Project includes admin panel with content editor, category manager, and CRUD operations via Server Actions"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Next.js", "Auth", "Feature"], "_i": 45}, {"id": 1744, "title": "Showcase Feature Plan for Oneulgam Journaling App", "subtitle": "Plan document outlines pre-login showcase experience with mock data for emotion tracking journal app", "facts": ["Oneulgam is an emotion tracking journal app currently requiring login to access", "Showcase feature targets /showcase route with 4 core screens: writing, emotion analysis, calendar, and review", "Implementation uses hardcoded mock data to avoid Firebase calls and authentication middleware"], "type": "discovery", "icon": "🔵", "tags": ["Firebase", "Next.js", "Auth", "Design", "PDCA", "Subway", "oneulgam", "Feature"], "_i": 46}, {"id": 1739, "title": "Design document status changed from DRAFT to APPROVED marking completion of design phase", "subtitle": "Repositioning strategy finalized after incorporating adversarial review feedback and technical implementation clarifications", "facts": ["Design document status field updated from \"DRAFT\" to \"APPROVED\" in header metadata", "Approval follows iterative refinement addressing critical review feedback that initially scored document 6/10", "Approved design includes complete technical specifications for past-entry citation, onboarding redesign, safety guidelines, and analytics prerequisites"], "type": "change", "icon": "✅", "tags": ["Next.js", "Design", "Onboarding", "Subway", "Feature"], "_i": 47}, {"id": 1738, "title": "Past-entry citation implementation strategy revised to runtime-only decryption preserving encryption model", "subtitle": "Architecture changed from plaintext index storage to in-memory decryption with explicit latency, cost, and privacy tradeoffs", "facts": ["Implementation approach retitled from \"Firestore 기반, 간단한 접근\" to \"런타임 복호화 접근 — 별도 평문 저장 없음\" emphasizing no plaintext storage", "Original approach of storing decrypted text index in Firestore explicitly rejected to preserve existing AES-256-GCM encryption model", "New strategy fetches 10-20 encrypted entries from Firestore, decrypts in server memory using lib/encryption.ts, includes in Claude prompt, then immediately discards"], "type": "decision", "icon": "⚖️", "tags": ["Firebase", "Design", "Onboarding"], "_i": 48}, {"id": 1737, "title": "글숲 GTM Strategy: \"Wrapped for Writers\" Viral-to-Paid Funnel", "subtitle": "Chose viral DNA card sharing as free hook, with AI clone (conversation with past self) as paid conversion driver", "facts": ["GTM design document created for 글숲 (Geulsegye), a writing analytics service targeting Korean bloggers with 3+ years and 100+ posts", "Core problem identified: bloggers cannot objectively understand their writing style, emotional patterns, or literary DNA", "Chosen approach uses free DNA cards with SNS sharing to create viral loop, then converts users via AI clone paywall"], "type": "decision", "icon": "⚖️", "tags": ["Design", "PDCA", "Feature"], "_i": 49}, {"id": 1736, "title": "Onboarding redesign specification detailed with current state and progressive engagement strategy", "subtitle": "Section expanded from simple screen change to full 5-step to 1-step restructure with post-experience data collection", "facts": ["Onboarding section retitled from \"첫 화면\" (first screen) to \"재설계\" (redesign) reflecting comprehensive restructure", "Current 5-step onboarding flow documented: Welcome → Location permission → Birth year → Notification time → Start", "Redesign removes welcome slides and location permission request marked as currently unused features"], "type": "change", "icon": "✅", "tags": ["Firebase", "Auth", "Design", "Onboarding", "Feature"], "_i": 50}];
+
+const TAG_COLORS = {"Design": "#c8a45c", "Next.js": "#4e7ec8", "Subway": "#c85858", "Firebase": "#e8943a", "PDCA": "#4eaa78", "Feature": "#9878c8", "OG Image": "#c8906e", "Sitemap": "#5abcbc", "Auth": "#b8c84e", "Deploy": "#6e9ec8", "Onboarding": "#c878a0", "Env": "#7888c8", "General": "#888888", "oneulgam": "#e8d5a3"};
+
+const TAGS_ORDER = ["Design", "Next.js", "Subway", "Firebase", "PDCA", "Feature", "OG Image", "Sitemap", "Auth", "Deploy", "Onboarding", "Env", "General", "oneulgam"];
+
+// ── Build edges (nodes sharing ≥2 tags) ──────────────────
+function buildEdges(nodes) {
+  const edges = [];
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i].tags, b = nodes[j].tags;
+      const shared = a.filter(t => b.includes(t));
+      if (shared.length >= 2) {
+        edges.push({ source: i, target: j, weight: shared.length });
+      }
+    }
+  }
+  return edges;
+}
+
+// ── Canvas + sim ──────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let W, H, vmin;
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  vmin = Math.min(W, H) / 100;
+}
+resize();
+window.addEventListener('resize', () => { resize(); initPositions(); });
+
+// Simulation state
+const sim = NODES.map((n, i) => ({
+  ...n,
+  x: W * 0.3 + (Math.random() - 0.5) * W * 0.5,
+  y: H * 0.5 + (Math.random() - 0.5) * H * 0.5,
+  vx: 0, vy: 0,
+  r: 5 + n.facts.length * 1.5,
+  color: TAG_COLORS[n.tags[0]] || '#888',
+}));
+
+function initPositions() {
+  // Cluster by primary tag in a grid
+  const tagPos = {};
+  const tags = TAGS_ORDER;
+  const cols = 4;
+  tags.forEach((t, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    tagPos[t] = {
+      x: W * (0.15 + col * 0.2),
+      y: H * (0.2  + row * 0.25),
+    };
+  });
+  sim.forEach(n => {
+    const home = tagPos[n.tags[0]];
+    if (home) {
+      n.x = home.x + (Math.random() - 0.5) * 60;
+      n.y = home.y + (Math.random() - 0.5) * 60;
+    }
+    n.vx = 0; n.vy = 0;
+  });
+}
+initPositions();
+
+const EDGES = buildEdges(NODES);
+
+// ── Force sim tick ────────────────────────────────────────
+const TAG_CENTERS = {};
+function computeTagCenters() {
+  const tags = TAGS_ORDER;
+  const cols = 4;
+  tags.forEach((t, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    TAG_CENTERS[t] = {
+      x: W * (0.15 + col * 0.2),
+      y: H * (0.2  + row * 0.25),
+    };
+  });
+}
+computeTagCenters();
+window.addEventListener('resize', computeTagCenters);
+
+function tick() {
+  const K_REPEL     = 800;
+  const K_EDGE      = 0.012;
+  const K_CLUSTER   = 0.018;
+  const K_CENTER    = 0.004;
+  const DAMPING     = 0.82;
+  const EDGE_LEN    = 90;
+
+  // Reset forces
+  sim.forEach(n => { n.fx = 0; n.fy = 0; });
+
+  // Node repulsion
+  for (let i = 0; i < sim.length; i++) {
+    for (let j = i + 1; j < sim.length; j++) {
+      const dx = sim[i].x - sim[j].x;
+      const dy = sim[i].y - sim[j].y;
+      const d2 = dx*dx + dy*dy + 1;
+      const d  = Math.sqrt(d2);
+      const minD = sim[i].r + sim[j].r + 10;
+      const f = K_REPEL / (d2);
+      const fx = (dx/d) * f;
+      const fy = (dy/d) * f;
+      sim[i].fx += fx; sim[i].fy += fy;
+      sim[j].fx -= fx; sim[j].fy -= fy;
+    }
+  }
+
+  // Edge attraction
+  EDGES.forEach(e => {
+    const a = sim[e.source], b = sim[e.target];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d  = Math.sqrt(dx*dx + dy*dy) || 1;
+    const f  = (d - EDGE_LEN) * K_EDGE * e.weight;
+    a.fx += (dx/d) * f;
+    a.fy += (dy/d) * f;
+    b.fx -= (dx/d) * f;
+    b.fy -= (dy/d) * f;
+  });
+
+  // Cluster pull toward tag center
+  sim.forEach(n => {
+    const c = TAG_CENTERS[n.tags[0]];
+    if (c) {
+      n.fx += (c.x - n.x) * K_CLUSTER;
+      n.fy += (c.y - n.y) * K_CLUSTER;
+    }
+    // Gravity to canvas center
+    n.fx += (W/2 - n.x) * K_CENTER;
+    n.fy += (H/2 - n.y) * K_CENTER;
+  });
+
+  // Integrate
+  sim.forEach(n => {
+    if (n.pinned) return;
+    n.vx = (n.vx + n.fx) * DAMPING;
+    n.vy = (n.vy + n.fy) * DAMPING;
+    n.x += n.vx;
+    n.y += n.vy;
+    // Boundary
+    const pad = n.r + 8;
+    n.x = Math.max(pad, Math.min(W - pad, n.x));
+    n.y = Math.max(pad, Math.min(H - pad, n.y));
+  });
+}
+
+// ── Draw ──────────────────────────────────────────────────
+let hoveredNode = null;
+let selectedNode = null;
+let t = 0;
+
+function draw() {
+  // Trail bg
+  ctx.fillStyle = 'rgba(10,10,12,0.22)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Edges
+  EDGES.forEach(e => {
+    const a = sim[e.source], b = sim[e.target];
+    const isHovered = hoveredNode && (e.source === hoveredNode._i || e.target === hoveredNode._i);
+    const isSelected = selectedNode && (e.source === selectedNode._i || e.target === selectedNode._i);
+    const alpha = isSelected ? 0.35 : isHovered ? 0.22 : 0.04;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = `rgba(200,164,92,${alpha})`;
+    ctx.lineWidth = isSelected || isHovered ? 1 : 0.5;
+    ctx.stroke();
+  });
+
+  // Tag cluster labels (faint)
+  ctx.font = `300 ${vmin * 1.0}px 'JetBrains Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  Object.entries(TAG_CENTERS).forEach(([tag, pos]) => {
+    const col = TAG_COLORS[tag] || '#888';
+    ctx.fillStyle = col + '18';
+    ctx.fillText(tag, pos.x, pos.y - vmin * 5);
+  });
+
+  // Nodes
+  sim.forEach(n => {
+    const isHov  = hoveredNode  === n;
+    const isSel  = selectedNode === n;
+    const r      = n.r * (isSel ? 1.4 : isHov ? 1.2 : 1.0);
+    const energy = isSel || isHov;
+
+    if (energy) {
+      ctx.shadowColor = n.color;
+      ctx.shadowBlur  = isSel ? 20 : 12;
+    }
+
+    // Fill
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = isSel ? n.color : isHov ? n.color + 'cc' : n.color + '66';
+    ctx.fill();
+
+    // Border ring
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = n.color + (isSel ? 'ff' : 'aa');
+    ctx.lineWidth   = isSel ? 1.5 : 0.8;
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+  });
+
+  t += 0.016;
+}
+
+// ── Render loop ───────────────────────────────────────────
+let warmup = 0;
+function loop() {
+  if (warmup < 120) { tick(); warmup++; }
+  else if (warmup < 300) { tick(); warmup++; } // keep ticking slower
+  tick();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ── Interaction ───────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+
+function hitTest(mx, my) {
+  let closest = null, best = Infinity;
+  sim.forEach(n => {
+    const d = Math.hypot(n.x - mx, n.y - my);
+    if (d < n.r + 6 && d < best) { best = d; closest = n; }
+  });
+  return closest;
+}
+
+canvas.addEventListener('mousemove', e => {
+  const n = hitTest(e.clientX, e.clientY);
+  hoveredNode = n;
+  canvas.style.cursor = n ? 'pointer' : 'default';
+  if (n) {
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 16) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+    tooltip.textContent = n.title;
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoveredNode = null;
+  tooltip.style.display = 'none';
+});
+
+canvas.addEventListener('click', e => {
+  const n = hitTest(e.clientX, e.clientY);
+  if (n) openPanel(n);
+  else if (!document.getElementById('panel').contains(e.target)) closePanel();
+});
+
+// ── Panel ─────────────────────────────────────────────────
+const panel    = document.getElementById('panel');
+const panelTag = document.getElementById('panel-tag');
+const panelTitle  = document.getElementById('panel-title');
+const panelSub    = document.getElementById('panel-subtitle');
+const panelBody   = document.getElementById('panel-body');
+let typewriterTimer = null;
+
+function typewrite(el, text, speed, onDone) {
+  let i = 0;
+  el.textContent = '';
+  function step() {
+    if (i <= text.length) {
+      el.textContent = text.slice(0, i);
+      i++;
+      typewriterTimer = setTimeout(step, speed);
+    } else if (onDone) {
+      onDone();
+    }
+  }
+  step();
+}
+
+function parseFact(text) {
+  // Convert `code` to <code> spans
+  const parts = text.split(/`([^`]+)`/);
+  const span = document.createElement('span');
+  span.className = 'fact-text';
+  parts.forEach((p, i) => {
+    if (i % 2 === 1) {
+      const c = document.createElement('code');
+      c.textContent = p;
+      span.appendChild(c);
+    } else if (p) {
+      span.appendChild(document.createTextNode(p));
+    }
+  });
+  return span;
+}
+
+function openPanel(n) {
+  selectedNode = n;
+  clearTimeout(typewriterTimer);
+  panelBody.innerHTML = '';
+
+  const color = TAG_COLORS[n.tags[0]] || '#888';
+  panelTag.textContent = n.tags[0].toUpperCase();
+  panelTag.style.background = color + '22';
+  panelTag.style.color = color;
+  panelTag.style.borderColor = color + '44';
+
+  panelTitle.textContent = '';
+  panelSub.textContent = '';
+
+  panel.classList.add('open');
+
+  // Typewrite title → subtitle → facts
+  typewrite(panelTitle, n.title, 18, () => {
+    typewrite(panelSub, n.subtitle || '', 12, () => {
+      showFacts(n.facts, color, 0);
+    });
+  });
+}
+
+function showFacts(facts, color, idx) {
+  if (idx >= facts.length) return;
+  const item = document.createElement('div');
+  item.className = 'fact-item';
+
+  const dot = document.createElement('div');
+  dot.className = 'fact-dot';
+  dot.style.background = color;
+
+  item.appendChild(dot);
+  item.appendChild(parseFact(facts[idx]));
+  panelBody.appendChild(item);
+
+  requestAnimationFrame(() => {
+    item.classList.add('visible');
+    typewriterTimer = setTimeout(() => showFacts(facts, color, idx + 1), 220);
+  });
+}
+
+function closePanel() {
+  panel.classList.remove('open');
+  clearTimeout(typewriterTimer);
+  selectedNode = null;
+}
+
+document.getElementById('close-btn').addEventListener('click', closePanel);
+
+// ── Legend ────────────────────────────────────────────────
+const legend = document.getElementById('legend');
+Object.entries(TAG_COLORS).forEach(([tag, color]) => {
+  const row = document.createElement('div');
+  row.className = 'legend-row';
+  const dot = document.createElement('div');
+  dot.className = 'legend-dot';
+  dot.style.background = color;
+  const lbl = document.createElement('span');
+  lbl.textContent = tag;
+  row.append(dot, lbl);
+  legend.appendChild(row);
+});
+</script>
+</body>
+</html>

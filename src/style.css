@@ -1,0 +1,193 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500&family=JetBrains+Mono:wght@300;400&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:      #0a0a0c;
+  --fg:      #e8e6e1;
+  --muted:   #5a5850;
+  --dim:     #2e2c28;
+  --accent:  #c8a45c;
+  --border:  #1c1b18;
+  --hover:   #111010;
+  --font-sans: 'Noto Sans KR', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── List view ───────────────────────────────────────────── */
+#app {
+  display: none;
+  min-height: 100vh;
+  padding: 72px 48px 80px;
+  max-width: 860px;
+}
+
+#app.visible {
+  display: block;
+}
+
+/* Site wordmark */
+.header {
+  margin-bottom: 72px;
+}
+
+.header .wordmark {
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 300;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.header .subtitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Column headers */
+.list-header {
+  display: grid;
+  grid-template-columns: 52px 1fr 96px;
+  gap: 0 28px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.list-header span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Experiment rows */
+.experiment-list {
+  list-style: none;
+}
+
+.experiment-item {
+  display: grid;
+  grid-template-columns: 52px 1fr 96px;
+  align-items: center;
+  gap: 0 28px;
+  padding: 13px 8px;
+  margin: 0 -8px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.experiment-item:hover {
+  background: var(--hover);
+}
+
+.experiment-item:hover .num {
+  color: var(--accent);
+}
+
+.experiment-item:hover .title {
+  color: #fff;
+}
+
+.experiment-item .num {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  transition: color 0.1s;
+}
+
+.experiment-item .title {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--fg);
+  letter-spacing: 0.01em;
+  transition: color 0.1s;
+}
+
+.experiment-item .date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-align: right;
+  letter-spacing: 0.06em;
+}
+
+/* ── Canvas / experiment view ────────────────────────────── */
+#canvas {
+  display: none;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+#canvas.visible {
+  display: block;
+}
+
+/* Back button */
+.back-btn {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 100;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 7px 14px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.back-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Experiment name overlay */
+.exp-title {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 100;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.exp-title .exp-num {
+  color: var(--accent);
+  margin-right: 10px;
+}
