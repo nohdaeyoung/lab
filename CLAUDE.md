@@ -57,11 +57,12 @@ export function init(canvas, ctx) {
 ```
 
 ## 코딩 규칙
-- **배포 금지**: 변경은 로컬에만. 사용자가 "배포해줘" 할 때만 `npm run build`
+- **배포 금지**: 변경은 로컬에만. 사용자가 "배포해줘" 할 때만 `npm run build` + `vercel --prod`
 - **DOM 오버레이**: Canvas 위에 DOM 쓸 때 `position: fixed; inset: 0; pointer-events: none`
 - **CSS 인젝션**: 실험 내부 스타일은 `<style>` 태그 생성 후 destroy에서 제거
 - **폰트 로딩**: `document.fonts.load(FONT, TEXT).then(() => draw())` 패턴 사용
 - **리사이즈**: main.js가 canvas 크기 자동 관리. 실험은 `window.resize` 직접 등록
+- **Back 버튼 (독립 HTML 페이지)**: `public/` 하위 standalone 페이지의 back 버튼은 `location.href='/'` 사용. `history.back()`은 이전 히스토리가 없을 때 동작 안 하므로 금지
 
 ## 현재 실험 목록
 | # | 파일 | 내용 |
