@@ -135,6 +135,16 @@ html, body {
   letter-spacing: 0.06em;
 }
 
+.experiment-item--special .num {
+  color: var(--accent);
+}
+.experiment-item--special .title {
+  color: var(--accent);
+}
+.experiment-item--special:hover .title {
+  color: #e8d5a3;
+}
+
 /* ── Canvas / experiment view ────────────────────────────── */
 #canvas {
   display: none;

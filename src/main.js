@@ -88,6 +88,26 @@ async function showList() {
     list.appendChild(li)
   }
 
+  // Writing map — standalone entry
+  const mapItem = document.createElement('li')
+  mapItem.className = 'experiment-item experiment-item--special'
+
+  const mapNum = document.createElement('span')
+  mapNum.className = 'num'
+  mapNum.textContent = '★'
+
+  const mapTitle = document.createElement('span')
+  mapTitle.className = 'title'
+  mapTitle.textContent = 'Writing Map'
+
+  const mapDate = document.createElement('span')
+  mapDate.className = 'date'
+  mapDate.textContent = '2026-03-23'
+
+  mapItem.append(mapNum, mapTitle, mapDate)
+  mapItem.addEventListener('click', () => { window.open('writing-map.html', '_blank') })
+  list.appendChild(mapItem)
+
   app.append(header, listHeader, list)
 }
 
